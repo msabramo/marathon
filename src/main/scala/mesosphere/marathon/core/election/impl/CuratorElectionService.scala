@@ -1,13 +1,14 @@
 package mesosphere.marathon
 package core.election.impl
 
-import com.typesafe.scalalogging.StrictLogging
 import java.util
 import java.util.Collections
 import java.util.concurrent.{ Executors, TimeUnit }
 
 import akka.actor.ActorSystem
 import akka.event.EventStream
+import com.typesafe.scalalogging.StrictLogging
+import mesosphere.marathon.core.async.ExecutionContexts
 import mesosphere.marathon.core.base._
 import org.apache.curator.framework.api.ACLProvider
 import org.apache.curator.framework.imps.CuratorFrameworkState
@@ -18,9 +19,8 @@ import org.apache.curator.{ RetryPolicy, RetrySleeper }
 import org.apache.zookeeper.ZooDefs
 import org.apache.zookeeper.data.ACL
 
-import scala.concurrent.Future
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NonFatal
-import scala.concurrent.ExecutionContext
 
 /**
   * Handles our election leader election concerns.
@@ -82,7 +82,7 @@ class CuratorElectionService(
     } catch {
       case NonFatal(e) =>
         logger.error(s"ZooKeeper initialization failed - Committing suicide: ${e.getMessage}")
-        Runtime.getRuntime.asyncExit()(scala.concurrent.ExecutionContext.global)
+        Runtime.getRuntime.asyncExit()(ExecutionContexts.global)
     }
   }
 
@@ -121,7 +121,7 @@ class CuratorElectionService(
     logger.info("Lost connection to ZooKeeper as leader — Committing suicide")
     stopLeadership()
     client.close()
-    Runtime.getRuntime.asyncExit()(scala.concurrent.ExecutionContext.global)
+    Runtime.getRuntime.asyncExit()(ExecutionContexts.global)
   }
 
   private[this] def onAbdicate(error: Boolean): Unit = synchronized {
@@ -169,7 +169,7 @@ class CuratorElectionService(
       retryPolicy(new RetryPolicy {
         override def allowRetry(retryCount: Int, elapsedTimeMs: Long, sleeper: RetrySleeper): Boolean = {
           logger.error("ZooKeeper access failed — Committing suicide to avoid invalidating ZooKeeper state")
-          Runtime.getRuntime.asyncExit()(scala.concurrent.ExecutionContext.global)
+          Runtime.getRuntime.asyncExit()(ExecutionContexts.global)
           false
         }
       })

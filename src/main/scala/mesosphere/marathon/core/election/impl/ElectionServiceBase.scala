@@ -5,6 +5,8 @@ import akka.actor.{ ActorRef, ActorSystem }
 import akka.event.EventStream
 import akka.pattern.after
 import com.typesafe.scalalogging.StrictLogging
+import mesosphere.marathon.core.async.ExecutionContexts
+import mesosphere.marathon.core.base.{ ShutdownHooks, _ }
 import kamon.Kamon
 import kamon.metric.instrument.Time
 import mesosphere.marathon.core.base._
@@ -46,7 +48,7 @@ abstract class ElectionServiceBase(
 
   private[impl] var state: State = Idle(candidate = None)
 
-  protected implicit val executionContext: ExecutionContext = ExecutionContext.global
+  protected implicit val executionContext: ExecutionContext = ExecutionContexts.global
 
   def leaderHostPortImpl: Option[String]
 

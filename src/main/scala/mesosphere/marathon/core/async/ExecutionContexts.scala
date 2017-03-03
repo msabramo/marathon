@@ -4,7 +4,12 @@ package core.async
 import org.slf4j.MDC
 
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor }
-import java.util.concurrent.Executor
+import java.util.concurrent.{ Executor, TimeUnit }
+
+import akka.dispatch.{ ContextPropagatingDispatcher, DispatcherPrerequisites, MessageDispatcher, MessageDispatcherConfigurator }
+import com.typesafe.config.Config
+
+import scala.concurrent.duration.{ Duration, FiniteDuration }
 
 /**
   * Mixin that enables org.slf4j.MDC and [[Context]] propagation across threads.
@@ -51,6 +56,23 @@ object CallerThreadExecutionContext {
   lazy val callerThreadExecutionContext: ExecutionContextExecutor = ExecutionContext.fromExecutor(executor)
 
   def apply(): ExecutionContext = callerThreadExecutionContext
+}
+
+class ContextAwareDispatcherConfigurator(config: Config, prereqs: DispatcherPrerequisites)
+    extends MessageDispatcherConfigurator(config, prereqs) {
+
+  private val instance = {
+    new ContextPropagatingDispatcher(
+      this,
+      config.getString("id"),
+      config.getInt("throughput"),
+      Duration(config.getDuration("throughput-deadline-time", TimeUnit.NANOSECONDS), TimeUnit.NANOSECONDS),
+      configureExecutor(),
+      FiniteDuration(config.getDuration("shutdown-timeout", TimeUnit.NANOSECONDS), TimeUnit.NANOSECONDS)
+    )
+  }
+
+  override def dispatcher(): MessageDispatcher = instance
 }
 
 object ExecutionContexts {

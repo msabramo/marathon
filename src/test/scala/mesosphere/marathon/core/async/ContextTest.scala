@@ -5,6 +5,7 @@ import java.time.{ Clock, Duration, Instant, ZoneId }
 import java.util.concurrent.{ Executors, Semaphore }
 
 import akka.Done
+import akka.actor.{ Actor, ActorRef, Props }
 import mesosphere.marathon.test.SettableClock
 import mesosphere.{ AkkaUnitTest, UnitTest }
 
@@ -48,6 +49,18 @@ class ContextTest extends UnitTest {
       }
       TestContext.value should be('empty)
     }
+  }
+}
+
+case class GetTestContextValue(promise: Promise[Option[Int]])
+case class Forward[T](to: ActorRef, msg: T)
+
+class TestActor extends Actor {
+  override def receive: Receive = {
+    case GetTestContextValue(promise) =>
+      promise.success(TestContext.value)
+    case Forward(to, msg) =>
+      to ! msg
   }
 }
 
@@ -117,6 +130,33 @@ class ContextPropagatingExecutionContextTest extends AkkaUnitTest {
           promise.future.futureValue.value should be(7)
           cancelToken.cancel()
         }
+      }
+    }
+    "when used with akka actors" should {
+      "propagate the context" in {
+        val promise = Promise[Option[Int]]
+        val ref = system.actorOf(Props(classOf[TestActor]))
+        TestContext.withContext(11) {
+          ref ! GetTestContextValue(promise)
+        }
+        promise.future.futureValue.value should be(11)
+
+        val cleared = Promise[Option[Int]]
+        ref ! GetTestContextValue(cleared)
+        cleared.future.futureValue should be('empty)
+      }
+      "between actors" in {
+        val promise = Promise[Option[Int]]
+        val ref = system.actorOf(Props(classOf[TestActor]))
+        val ref2 = system.actorOf(Props(classOf[TestActor]))
+        TestContext.withContext(11) {
+          ref ! Forward(ref2, GetTestContextValue(promise))
+        }
+        promise.future.futureValue.value should be(11)
+
+        val cleared = Promise[Option[Int]]
+        ref ! Forward(ref2, GetTestContextValue(cleared))
+        cleared.future.futureValue should be('empty)
       }
     }
   }

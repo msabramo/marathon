@@ -2,6 +2,7 @@ package mesosphere.marathon
 package integration.setup
 
 import java.lang.management.ManagementFactory
+import javax.servlet.http.{ HttpServletRequest, HttpServletResponse }
 
 import org.eclipse.jetty.server.{ Request, Server }
 import org.eclipse.jetty.server.handler.AbstractHandler
@@ -13,9 +14,16 @@ import spray.client.pipelining._
 
 import scala.concurrent.Await._
 import scala.concurrent.duration._
+import org.eclipse.jetty.server.{ Request, Server }
+import org.eclipse.jetty.server.handler.AbstractHandler
+import javax.servlet.http.{ HttpServletRequest, HttpServletResponse }
+
+import com.typesafe.scalalogging.StrictLogging
+import org.eclipse.jetty.server.handler.AbstractHandler
+import org.eclipse.jetty.server.{ Request, Server }
 
 class AppMock(appId: String, version: String, url: String) extends AbstractHandler with StrictLogging {
-  import scala.concurrent.ExecutionContext.Implicits.global
+  import mesosphere.marathon.core.async.ExecutionContexts.global
 
   implicit val system = ActorSystem()
   val pipeline = sendReceive

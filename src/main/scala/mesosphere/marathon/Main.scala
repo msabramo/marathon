@@ -13,14 +13,13 @@ import mesosphere.chaos.http.{ HttpModule, HttpService }
 import mesosphere.chaos.metrics.MetricsModule
 import mesosphere.marathon.api.MarathonRestModule
 import mesosphere.marathon.core.CoreGuiceModule
+import mesosphere.marathon.core.async.ExecutionContexts
 import mesosphere.marathon.core.base.toRichRuntime
 import mesosphere.marathon.metrics.Metrics
 import mesosphere.marathon.stream.Implicits._
 import mesosphere.mesos.LibMesos
 import org.slf4j.LoggerFactory
 import org.slf4j.bridge.SLF4JBridgeHandler
-
-import scala.concurrent.ExecutionContext
 
 class MarathonApp(args: Seq[String]) extends AutoCloseable with StrictLogging {
   private var running = false
@@ -31,7 +30,7 @@ class MarathonApp(args: Seq[String]) extends AutoCloseable with StrictLogging {
   Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler {
     override def uncaughtException(thread: Thread, throwable: Throwable): Unit = {
       logger.error(s"Terminating ${cliConf.httpPort()} due to uncaught exception in thread ${thread.getName}:${thread.getId}", throwable)
-      Runtime.getRuntime.asyncExit()(ExecutionContext.global)
+      Runtime.getRuntime.asyncExit()(ExecutionContexts.global)
     }
   })
 

@@ -70,7 +70,7 @@ class GroupsResource @Inject() (
     @QueryParam("embed") embed: java.util.Set[String],
     @Context req: HttpServletRequest): Response = authenticated(req) { implicit identity =>
 
-    import scala.concurrent.ExecutionContext.Implicits.global
+    import mesosphere.marathon.core.async.ExecutionContexts.global
 
     val embeds: Set[String] = if (embed.isEmpty) defaultEmbeds else embed
     val (appEmbed, groupEmbed) = resolveAppGroup(embeds)

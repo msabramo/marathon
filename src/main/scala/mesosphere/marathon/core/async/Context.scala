@@ -18,10 +18,11 @@ import scala.reflect.ClassTag
   * In addition, at some point, akka's dispatcher will also gain this functionality such
   * that it will also work with Actors.
   *
-  * In general, the primary usage is from other Contexts, such as [[CancelContext]]
+  * In general, the primary usage is from other Contexts, such as [[mesosphere.marathon.core.async.Context.CancelContext]]
   */
 object Context {
-  private[async] sealed trait ContextName[T]
+  // public to enable usage from [[akka.dispatch.ContextPropagatingDispatcher]]
+  sealed trait ContextName[T]
   private[async] case object TestContext extends ContextName[Int]
   case object Cancel extends ContextName[CancelContext.CancellationState]
   case object Deadline extends ContextName[DeadlineContext.DeadlineInfo]
@@ -42,11 +43,13 @@ object Context {
     tls.get().get(key).collect { case t: T => t }
   }
 
-  private[async] def copy: Map[ContextName[_], Any] = {
+  // public only to enable ContextPropagatingDispatcher to use it
+  def copy: Map[ContextName[_], Any] = {
     tls.get().toMap
   }
 
-  private[async] def set(map: Map[ContextName[_], Any]): Unit = {
+  // public only to enable ContextPropagatingDispatcher to use it
+  def set(map: Map[ContextName[_], Any]): Unit = {
     tls.set(mutable.Map.empty[ContextName[_], Any] ++ map)
   }
 
@@ -55,7 +58,8 @@ object Context {
     */
   def clearContext[T](f: => T): T = withContext(Map.empty[ContextName[_], Any])(f)
 
-  private[async] def withContext[T](newContext: Map[ContextName[_], Any])(f: => T): T = {
+  // public only to enable ContextPropagatingDispatcher
+  def withContext[T](newContext: Map[ContextName[_], Any])(f: => T): T = {
     val old = copy // linter:ignore
     set(newContext)
     try {

@@ -11,7 +11,7 @@ import spray.http.HttpResponse
 import scala.concurrent.duration.{ Duration, _ }
 
 class ServiceMockFacade(task: ITEnrichedTask, waitTime: Duration = 30.seconds)(implicit system: ActorSystem) {
-  import scala.concurrent.ExecutionContext.Implicits.global
+  import mesosphere.marathon.core.async.ExecutionContexts.global
 
   val log = LoggerFactory.getLogger(classOf[ServiceMockFacade])
 
