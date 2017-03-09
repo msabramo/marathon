@@ -234,7 +234,6 @@ class GroupDeployIntegrationTest extends AkkaIntegrationTest with EmbeddedMarath
 
       When("Another upgrade is triggered, while the old one is not completed")
       val result = marathon.updateGroup(gid, group.copy(apps = Some(Set(appProxy(appId, "v3", 2)))))
-      println("##### update v3")
 
       Then("An error is indicated")
       result.code should be (HttpStatus.SC_CONFLICT)
@@ -242,11 +241,9 @@ class GroupDeployIntegrationTest extends AkkaIntegrationTest with EmbeddedMarath
 
       When("Another upgrade is triggered with force, while the old one is not completed")
       val force = marathon.updateGroup(gid, group.copy(apps = Some(Set(appProxy(appId, "v4", 2)))), force = true)
-      println("##### update v4")
 
       Then("The update is performed")
       waitForDeployment(force)
-      println("##### all updates done. success")
     }
 
     "A group with a running deployment can not be deleted without force" in temporaryGroup{ gid =>
