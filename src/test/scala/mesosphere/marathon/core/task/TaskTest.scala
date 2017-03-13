@@ -186,15 +186,17 @@ class TaskTest extends UnitTest with Inside {
         .setState(MesosProtos.TaskState.TASK_RUNNING)
         .setContainerStatus(containerStatus)
         .setTimestamp(seconds.toDouble)
-
       val mesosStatus = mesosStatusBuilder.build()
       val op = TaskUpdateOperation.MesosUpdate(Condition.Running, mesosStatus, f.clock.now)
 
+      When("task is launched, no ipAddress should be found")
       task.status.networkInfo.ipAddresses shouldBe Nil
 
+      Then("MesosUpdate TASK_RUNNING is applied with containing NetworkInfo")
       inside(task.update(op)) {
         case effect: TaskUpdateEffect.Update =>
           val networkInfo = status.networkInfo.update(effect.newState.status.mesosStatus.get)
+          Then("NetworkInfo should be updated")
           networkInfo.ipAddresses shouldBe Seq(f.ipAddress1)
       }
     }
