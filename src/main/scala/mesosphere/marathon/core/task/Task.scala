@@ -510,9 +510,12 @@ object Task {
       // case 3: health or state updated
       case TaskUpdateOperation.MesosUpdate(newStatus, mesosUpdate, _) =>
         updatedHealthOrState(status.mesosStatus, mesosUpdate).map { newTaskStatus =>
+          val updatedNetworkInfo = status.networkInfo.update(mesosUpdate)
           val updatedTask = copy(status = status.copy(
             mesosStatus = Some(newTaskStatus),
-            condition = newStatus))
+            condition = newStatus,
+            networkInfo = updatedNetworkInfo
+          ))
           TaskUpdateEffect.Update(newState = updatedTask)
         } getOrElse {
           log.debug("Ignoring status update for {}. Status did not change.", taskId)
