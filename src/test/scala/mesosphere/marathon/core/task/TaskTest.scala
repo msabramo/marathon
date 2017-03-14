@@ -194,6 +194,7 @@ class TaskTest extends UnitTest with Inside {
       inside(task.update(op)) {
         case effect: TaskUpdateEffect.Update =>
           val networkInfo = status.networkInfo.update(effect.newState.status.mesosStatus.get)
+
           Then("NetworkInfo should be updated")
           networkInfo.ipAddresses shouldBe Seq(f.ipAddress1)
       }
