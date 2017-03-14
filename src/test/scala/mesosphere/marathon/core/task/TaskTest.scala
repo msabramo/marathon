@@ -9,7 +9,7 @@ import mesosphere.marathon.core.task.Task.LocalVolumeId
 import mesosphere.marathon.core.task.bus.MesosTaskStatusTestHelper
 import mesosphere.marathon.core.task.state.{ NetworkInfo, NetworkInfoPlaceholder }
 import mesosphere.marathon.core.task.update.{ TaskUpdateEffect, TaskUpdateOperation }
-import mesosphere.marathon.state.{ AppDefinition, IpAddress, PathId, Timestamp }
+import mesosphere.marathon.state.{ AppDefinition, IpAddress, PathId }
 import mesosphere.marathon.stream.Implicits._
 import mesosphere.marathon.test.MarathonTestHelper
 import org.apache.mesos.{ Protos => MesosProtos }
@@ -180,13 +180,11 @@ class TaskTest extends UnitTest with Inside {
 
       val containerStatus = MarathonTestHelper.containerStatusWithNetworkInfo(f.networkWithOneIp1)
 
-      val seconds = Timestamp.now.millis / 1000
-      val mesosStatusBuilder = MesosProtos.TaskStatus.newBuilder
+      val mesosStatus = MesosProtos.TaskStatus.newBuilder
         .setTaskId(taskId.mesosTaskId)
         .setState(MesosProtos.TaskState.TASK_RUNNING)
         .setContainerStatus(containerStatus)
-        .setTimestamp(seconds.toDouble)
-      val mesosStatus = mesosStatusBuilder.build()
+        .setTimestamp(f.clock.now.millis.toDouble).build()
       val op = TaskUpdateOperation.MesosUpdate(Condition.Running, mesosStatus, f.clock.now)
 
       When("task is launched, no ipAddress should be found")
