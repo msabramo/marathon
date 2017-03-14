@@ -486,11 +486,13 @@ object Task {
 
       // case 1: now running
       case TaskUpdateOperation.MesosUpdate(Condition.Running, mesosStatus, now) if !hasStartedRunning =>
+        val updatedNetworkInfo = status.networkInfo.update(mesosStatus)
         val updated = copy(
           status = status.copy(
             startedAt = Some(now),
             mesosStatus = Some(mesosStatus),
-            condition = Condition.Running))
+            condition = Condition.Running,
+            networkInfo = updatedNetworkInfo))
         TaskUpdateEffect.Update(updated)
 
       // case 2: terminal
@@ -508,9 +510,9 @@ object Task {
         TaskUpdateEffect.Update(updatedTask)
 
       // case 3: health or state updated
-      case TaskUpdateOperation.MesosUpdate(newStatus, mesosUpdate, _) =>
-        updatedHealthOrState(status.mesosStatus, mesosUpdate).map { newTaskStatus =>
-          val updatedNetworkInfo = status.networkInfo.update(mesosUpdate)
+      case TaskUpdateOperation.MesosUpdate(newStatus, mesosStatus, _) =>
+        updatedHealthOrState(status.mesosStatus, mesosStatus).map { newTaskStatus =>
+          val updatedNetworkInfo = status.networkInfo.update(mesosStatus)
           val updatedTask = copy(status = status.copy(
             mesosStatus = Some(newTaskStatus),
             condition = newStatus,

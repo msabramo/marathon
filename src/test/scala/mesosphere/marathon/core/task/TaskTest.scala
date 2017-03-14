@@ -169,13 +169,16 @@ class TaskTest extends UnitTest with Inside {
       }
     }
 
-    "a LaunchedOnReservation task udpates network info on MesosUpdate" in {
+    "a LaunchedOnReservation task updates network info on MesosUpdate" in {
       val f = new Fixture
 
       val condition = Condition.Running
       val taskId = Task.Id.forRunSpec(f.appWithIpAddress.id)
       val reservation = mock[Task.Reservation]
-      val status = Task.Status(f.clock.now, None, None, condition, NetworkInfoPlaceholder())
+      val status = Task.Status(
+        stagedAt = f.clock.now,
+        startedAt = Some(f.clock.now),
+        mesosStatus = None, condition, NetworkInfoPlaceholder())
       val task = Task.LaunchedOnReservation(taskId, f.clock.now, status, reservation)
 
       val containerStatus = MarathonTestHelper.containerStatusWithNetworkInfo(f.networkWithOneIp1)
@@ -193,10 +196,40 @@ class TaskTest extends UnitTest with Inside {
       Then("MesosUpdate TASK_RUNNING is applied with containing NetworkInfo")
       inside(task.update(op)) {
         case effect: TaskUpdateEffect.Update =>
-          val networkInfo = status.networkInfo.update(effect.newState.status.mesosStatus.get)
-
           Then("NetworkInfo should be updated")
-          networkInfo.ipAddresses shouldBe Seq(f.ipAddress1)
+          effect.newState.status.networkInfo.ipAddresses shouldBe Seq(f.ipAddress1)
+      }
+    }
+
+    "a task that was not running before and is updated to running updates network info" in {
+      val f = new Fixture
+
+      val condition = Condition.Staging
+      val taskId = Task.Id.forRunSpec(f.appWithIpAddress.id)
+      val reservation = mock[Task.Reservation]
+      val status = Task.Status(
+        stagedAt = f.clock.now,
+        startedAt = None,
+        mesosStatus = None, condition, NetworkInfoPlaceholder())
+      val task = Task.LaunchedOnReservation(taskId, f.clock.now, status, reservation)
+
+      val containerStatus = MarathonTestHelper.containerStatusWithNetworkInfo(f.networkWithOneIp1)
+
+      val mesosStatus = MesosProtos.TaskStatus.newBuilder
+        .setTaskId(taskId.mesosTaskId)
+        .setState(MesosProtos.TaskState.TASK_RUNNING)
+        .setContainerStatus(containerStatus)
+        .setTimestamp(f.clock.now.millis.toDouble).build()
+      val op = TaskUpdateOperation.MesosUpdate(Condition.Running, mesosStatus, f.clock.now)
+
+      When("task is launched, no ipAddress should be found")
+      task.status.networkInfo.ipAddresses shouldBe Nil
+
+      Then("MesosUpdate TASK_RUNNING is applied with containing NetworkInfo")
+      inside(task.update(op)) {
+        case effect: TaskUpdateEffect.Update =>
+          Then("NetworkInfo should be updated")
+          effect.newState.status.networkInfo.ipAddresses shouldBe Seq(f.ipAddress1)
       }
     }
 
