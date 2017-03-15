@@ -393,6 +393,8 @@ trait MarathonTest extends StrictLogging with ScalaFutures with Eventually {
 
       val apps = marathon.listAppsInBaseGroup
       require(apps.value.isEmpty, s"apps weren't empty: ${apps.entityPrettyJsonString}")
+      val pods = marathon.listPodsInBaseGroup
+      require(pods.value.isEmpty, s"pods weren't empty: ${pods.entityPrettyJsonString}")
       val groups = marathon.listGroupsInBaseGroup
       require(groups.value.isEmpty, s"groups weren't empty: ${groups.entityPrettyJsonString}")
       events.clear()
