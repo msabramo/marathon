@@ -244,9 +244,9 @@ class AppNormalizationTest extends UnitTest {
         docker = Option(DockerContainer(
           network = Option(DockerNetwork.User),
           image = "image0",
-          portMappings = Seq(ContainerPortMapping(
+          portMappings = Option(Seq(ContainerPortMapping(
             containerPort = 1, hostPort = Option(2), servicePort = 3, name = Option("port0"), protocol = NetworkProtocol.Udp
-          ))
+          )))
         ))
       )),
       ipAddress = Option(IpAddress(

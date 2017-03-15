@@ -373,8 +373,8 @@ class AppsResourceTest extends AkkaUnitTest with GroupCreation {
         container = Some(raml.Container(
           `type` = EngineType.Docker,
           docker = Some(DockerContainer(
-            portMappings = Seq(
-              ContainerPortMapping(containerPort = 0)),
+            portMappings = Option(Seq(
+              ContainerPortMapping(containerPort = 0))),
             image = "jdef/helpme",
             network = Some(DockerNetwork.User)
           ))
@@ -406,9 +406,9 @@ class AppsResourceTest extends AkkaUnitTest with GroupCreation {
       val container = DockerContainer(
         network = Some(DockerNetwork.Bridge),
         image = "jdef/helpme",
-        portMappings = Seq(
+        portMappings = Option(Seq(
           ContainerPortMapping(containerPort = 0)
-        )
+        ))
       )
 
       val app = App(

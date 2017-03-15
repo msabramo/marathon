@@ -159,7 +159,8 @@ trait ContainerConversion extends HealthCheckConversion with VolumeConversion wi
       image = docker.getImage,
       network = docker.when(_.hasOBSOLETENetwork, _.getOBSOLETENetwork.toRaml).orElse(DockerContainer.DefaultNetwork),
       parameters = docker.whenOrElse(_.getParametersCount > 0, _.getParametersList.map(_.toRaml)(collection.breakOut), DockerContainer.DefaultParameters),
-      portMappings = docker.whenOrElse(_.getOBSOLETEPortMappingsCount > 0, _.getOBSOLETEPortMappingsList.map(_.toRaml)(collection.breakOut), DockerContainer.DefaultPortMappings),
+      portMappings = Option.empty[Seq[ContainerPortMapping]].unless(
+        docker.when(_.getOBSOLETENetwork != Mesos.ContainerInfo.DockerInfo.Network.HOST, _.getOBSOLETEPortMappingsList.map(_.toRaml)(collection.breakOut))),
       privileged = docker.when(_.hasPrivileged, _.getPrivileged).getOrElse(DockerContainer.DefaultPrivileged)
     )
   }

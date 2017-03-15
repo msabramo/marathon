@@ -63,6 +63,11 @@ class ContainerConversionTest extends UnitTest {
         raml.docker.get.credential.get.secret should be(credentials.secret)
       }
     }
+    "a mesos-docker container w/o port mappings" should {
+      val container = state.Container.MesosDocker(Seq(coreHostVolume), "test", portMappings = Seq.empty, Some(credentials))
+      val raml = container.toRaml[Container]
+      behave like convertToProtobufThenToRAML(container, raml)
+    }
     "a RAML container" should {
       "convert to a mesos-docker container" in {
         val container = Container(EngineType.Mesos, portMappings = Option(Seq(ramlPortMapping)), docker = Some(DockerContainer(
@@ -116,7 +121,49 @@ class ContainerConversionTest extends UnitTest {
   }
 
   "A Docker Docker container is created correctly" when {
-    "a legacy docker protobuf container" should {
+    "a legacy docker protobuf container (host)" should {
+      "convert to RAML" in {
+        val legacyProto = Protos.ExtendedContainerInfo.newBuilder()
+          .setType(Mesos.ContainerInfo.Type.DOCKER)
+          .setDocker(Protos.ExtendedContainerInfo.DockerInfo.newBuilder()
+            .setImage("image0")
+            .setOBSOLETENetwork(Mesos.ContainerInfo.DockerInfo.Network.HOST)
+          )
+          .build
+        val expectedRaml = Container(
+          `type` = EngineType.Docker,
+          docker = Option(DockerContainer(
+            image = "image0",
+            network = Option(DockerNetwork.Host),
+            portMappings = None
+          )),
+          portMappings = Option(Seq.empty)
+        )
+        legacyProto.toRaml[Container] should be(expectedRaml)
+      }
+    }
+    "a legacy docker protobuf container (user)" should {
+      "convert to RAML" in {
+        val legacyProto = Protos.ExtendedContainerInfo.newBuilder()
+          .setType(Mesos.ContainerInfo.Type.DOCKER)
+          .setDocker(Protos.ExtendedContainerInfo.DockerInfo.newBuilder()
+            .setImage("image0")
+            .setOBSOLETENetwork(Mesos.ContainerInfo.DockerInfo.Network.USER)
+          )
+          .build
+        val expectedRaml = Container(
+          `type` = EngineType.Docker,
+          docker = Option(DockerContainer(
+            image = "image0",
+            network = Option(DockerNetwork.User),
+            portMappings = Option(Seq.empty)
+          )),
+          portMappings = Option(Seq.empty)
+        )
+        legacyProto.toRaml[Container] should be(expectedRaml)
+      }
+    }
+    "a legacy docker protobuf container (bridge)" should {
       "convert to RAML" in {
         val legacyProto = Protos.ExtendedContainerInfo.newBuilder()
           .setType(Mesos.ContainerInfo.Type.DOCKER)
@@ -136,14 +183,14 @@ class ContainerConversionTest extends UnitTest {
           docker = Option(DockerContainer(
             image = "image0",
             network = Option(DockerNetwork.Bridge),
-            portMappings = Seq(
+            portMappings = Option(Seq(
               ContainerPortMapping(
                 containerPort = 1,
                 hostPort = Option(2),
                 labels = Map("foo" -> "bar"),
                 name = Option("http"),
                 servicePort = 3
-              )
+              ))
             )
           )),
           portMappings = Option(Seq.empty)
@@ -167,6 +214,11 @@ class ContainerConversionTest extends UnitTest {
         raml.docker.get.network should be(empty)
         raml.portMappings should contain(Seq(ramlPortMapping))
       }
+    }
+    "a docker-docker container w/o port mappings" should {
+      val container = state.Container.Docker(Seq(coreHostVolume), "test")
+      val raml = container.toRaml[Container]
+      behave like convertToProtobufThenToRAML(container, raml)
     }
     "a RAML container" should {
       "convert to a docker-docker container" in {

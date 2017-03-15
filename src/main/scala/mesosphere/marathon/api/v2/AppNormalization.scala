@@ -57,10 +57,10 @@ object AppNormalization {
           None
       }
 
-    container.docker.map(_.portMappings) match {
+    container.docker.flatMap(_.portMappings) match {
       case Some(portMappings) => container.copy(
         portMappings = translatePortMappings(portMappings),
-        docker = container.docker.map(_.copy(portMappings = Nil))
+        docker = container.docker.map(_.copy(portMappings = None))
       )
       case None => container
     }

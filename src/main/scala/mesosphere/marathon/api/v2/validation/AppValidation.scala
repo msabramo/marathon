@@ -34,7 +34,7 @@ trait AppValidation {
   val dockerDockerContainerValidator: Validator[Container] = {
     val validDockerEngineSpec: Validator[DockerContainer] = validator[DockerContainer] { docker =>
       docker.image is notEmpty
-      docker.portMappings is valid(portMappingsValidator)
+      docker.portMappings is valid(optional(portMappingsValidator))
     }
     validator { (container: Container) =>
       container.docker is definedAnd(validDockerEngineSpec)
@@ -242,7 +242,7 @@ trait AppValidation {
   def validateOldAppUpdateAPI: Validator[AppUpdate] = forAll(
     validator[AppUpdate] { update =>
       update.container is optional(valid(validOldContainerAPI))
-      update.container.flatMap(_.docker.map(_.portMappings)) is optional(portMappingsValidator)
+      update.container.flatMap(_.docker.flatMap(_.portMappings)) is optional(portMappingsValidator)
       update.ipAddress is optional(isTrue(
         "ipAddress/discovery is not allowed for Docker containers") { (ipAddress: IpAddress) =>
           !(update.container.exists(c => c.`type` == EngineType.Docker) && ipAddress.discovery.nonEmpty)
@@ -310,7 +310,7 @@ trait AppValidation {
   val validateOldAppAPI: Validator[App] = forAll(
     validator[App] { app =>
       app.container is optional(valid(validOldContainerAPI))
-      app.container.flatMap(_.docker.map(_.portMappings)) is optional(portMappingsValidator)
+      app.container.flatMap(_.docker.flatMap(_.portMappings)) is optional(portMappingsValidator)
       app.ipAddress is optional(isTrue(
         "ipAddress/discovery is not allowed for Docker containers") { (ipAddress: IpAddress) =>
           !(app.container.exists(c => c.`type` == EngineType.Docker) && ipAddress.discovery.nonEmpty)
