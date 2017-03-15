@@ -93,11 +93,19 @@ object AppNormalization {
   case class NetworkedContainer(networks: Option[Seq[Network]], container: Option[Container])
 
   object NetworkedContainer {
+    // important that this is canonical and populated with default values here
+    private val defaultMesosContainer = Container(`type` = EngineType.Mesos, portMappings = Some(Apps.DefaultPortMappings))
+
     implicit val normalizePortMappings: Normalization[NetworkedContainer] = Normalization { n =>
       // assuming that we're already validated and everything ELSE network-related has been normalized, we can now
       // deal with translating unspecified port-mapping host-port's when in bridge mode
       val isBridgedNetwork = n.networks.fold(false)(_.exists(_.mode == NetworkMode.ContainerBridge))
-      val newContainer = n.container.map { ct =>
+
+      // in case someone specifies non-host-mode networking but doesn't specify a container, we'll create an empty one
+      def maybeDefaultContainer: Option[Container] =
+        n.networks.find(_.exists(_.mode != NetworkMode.Host)).map(_ => defaultMesosContainer)
+
+      val newContainer = n.container.orElse(maybeDefaultContainer).map { ct =>
         ct.copy(
           docker = ct.docker.map { d =>
             // this is deprecated, clear it so that it's deterministic later on...
@@ -190,7 +198,7 @@ object AppNormalization {
 
   def applyDefaultPortMappings(c: Container, networks: Seq[Network]): Container =
     if (networks.exists(_.mode == NetworkMode.Host) || networks.isEmpty || c.portMappings.nonEmpty) c
-    else c.copy(portMappings = Option(Seq(ContainerPortMapping(name = Option("default")))))
+    else c.copy(portMappings = Option(Apps.DefaultPortMappings))
 
   def applyDefaultPortDefinitions(app: App, networks: Seq[Network]): Option[Seq[PortDefinition]] =
     // Normally, our default is one port. If an non-host networks are defined that would lead to an error

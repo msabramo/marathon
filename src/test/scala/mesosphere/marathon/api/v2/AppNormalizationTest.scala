@@ -171,6 +171,21 @@ class AppNormalizationTest extends UnitTest {
         AppNormalization(AppNormalization.Configure(None)).normalized(AppNormalization.forDeprecated.normalized(app))
       }
 
+      "inject default ports for an app w/ container networking but w/o a container" in {
+        val raw = App(
+          id = "/foo",
+          cmd = Option("sleep"),
+          networks = Seq(Network(mode = NetworkMode.ContainerBridge)),
+          unreachableStrategy = Option(UnreachableEnabled.Default)
+        )
+        raw.normalize should be(raw.copy(container = Some(Container(
+          `type` = EngineType.Mesos,
+          portMappings = Option(Seq(
+            ContainerPortMapping(0, name = Some("default"), hostPort = Option(0))
+          ))
+        ))))
+      }
+
       "allow an app to declare empty port mappings" in {
         val raw = App(
           id = "/foo",
