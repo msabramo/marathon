@@ -192,6 +192,12 @@ object AppNormalization {
     if (check.httpStatusCodesForReady.nonEmpty) check
     else check.copy(httpStatusCodesForReady = Option(core.readiness.ReadinessCheck.DefaultHttpStatusCodesForReady))
 
+  def maybeAddPortMappings(c: Container, networks: Seq[Network], portDefinitions: Option[Seq[PortDefinition]]): Container =
+    networks.find(_.mode != NetworkMode.Host).map(_ => portDefinitions.fold(0)(_.size - c.portMappings.fold(0)(_.size))).fold(c) { delta =>
+      if (delta > 0) c.copy(portMappings = c.portMappings.orElse(Option(Seq.empty)).map(_ ++ 1.to(delta).map(_ => ContainerPortMapping())))
+      else c
+    }
+
   def maybeDropPortMappings(c: Container, networks: Seq[Network]): Container =
     // empty networks Seq defaults to host-mode later on, so consider it now as indicating host-mode networking
     if (networks.exists(_.mode == NetworkMode.Host) || networks.isEmpty) c.copy(portMappings = None) else c
@@ -200,17 +206,12 @@ object AppNormalization {
     if (networks.exists(_.mode == NetworkMode.Host) || networks.isEmpty || c.portMappings.nonEmpty) c
     else c.copy(portMappings = Option(Apps.DefaultPortMappings))
 
-  def applyDefaultPortDefinitions(app: App, networks: Seq[Network]): Option[Seq[PortDefinition]] =
-    // Normally, our default is one port. If an non-host networks are defined that would lead to an error
-    // if left unchanged.
-    if (networks.exists(_.mode != NetworkMode.Host))
-      None
-    else
-      Some(app.portDefinitions.getOrElse(
-        app.ports.map(p => PortDefinitions(p: _*)).getOrElse(
-          DefaultPortDefinitions
-        )
-      ))
+  def migratePortDefinitions(app: App): Option[Seq[PortDefinition]] =
+    app.portDefinitions.orElse(app.ports.map(p => PortDefinitions(p: _*)))
+
+  def applyDefaultPortDefinitions(portDefinitions: Option[Seq[PortDefinition]], networks: Seq[Network]): Option[Seq[PortDefinition]] =
+    // Normally, our default is one port. If an non-host networks are defined that would lead to an error if left unchanged.
+    networks.find(_.mode != NetworkMode.Host).fold(portDefinitions.orElse(Some(DefaultPortDefinitions)))(_ => None)
 
   /**
     * only deprecated fields and their interaction with canonical fields have been validated so far,
@@ -228,6 +229,10 @@ object AppNormalization {
       if (app.networks.isEmpty) None else Some(app.networks)
     ).normalize.networks.getOrElse(Nil)
 
+    // may need to expand port mappings based on number of declared port definitions, so figure this out first
+    val migratedPortDefinitions = migratePortDefinitions(app)
+    val portDefinitions = applyDefaultPortDefinitions(migratedPortDefinitions, networks)
+
     // canonical validation doesn't allow both portDefinitions and container.portMappings:
     // container and portDefinitions normalization (below) deal with dropping unsupported port configs.
 
@@ -236,20 +241,18 @@ object AppNormalization {
       app.ipAddress.map(_ => Container(EngineType.Mesos))
     ).map { c =>
         applyDefaultPortMappings(
-          maybeDropPortMappings(
-            dropDockerNetworks(
-              migrateIpDiscovery(
-                migrateDockerPortMappings(c),
-                app.ipAddress.flatMap(_.discovery)
-              )
-            ),
-            networks
-          ),
-          networks
+          maybeAddPortMappings(
+            maybeDropPortMappings(
+              dropDockerNetworks(
+                migrateIpDiscovery(
+                  migrateDockerPortMappings(c),
+                  app.ipAddress.flatMap(_.discovery)
+                )
+              ), networks
+            ), networks, migratedPortDefinitions
+          ), networks
         )
       }
-
-    val portDefinitions = applyDefaultPortDefinitions(app, networks)
 
     val healthChecks =
       // for an app (not an update) only normalize if there are ports defined somewhere.

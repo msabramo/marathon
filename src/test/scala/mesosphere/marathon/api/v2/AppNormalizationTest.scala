@@ -86,6 +86,38 @@ class AppNormalizationTest extends UnitTest {
       }
     }
 
+    "migrate legacy port definitions and mappings to canonical form" when {
+      implicit val appNormalizer = Normalization[App] { app =>
+        AppNormalization(AppNormalization.Configure(None)).normalized(AppNormalization.forDeprecated.normalized(app))
+      }
+      def normalizeMismatchedPortDefinitionsAndMappings(subcase: String, legacyf: Fixture => App, canonicalf: Fixture => App, extraPort: ContainerPortMapping) = {
+        s"mismatched port defintions and port mappings are specified for a docker app ($subcase)" in new Fixture {
+          val legacy: App = legacyf(this)
+          // the whole point is to test migration when # of mappings != # of port definitions
+          require(legacy.container.exists(_.docker.exists(_.portMappings.exists(_.size == 1))))
+          val raw = legacy.copy(portDefinitions = Option(PortDefinitions(0, 0)))
+          val result = raw.normalize
+          val canonical: App = canonicalf(this)
+          result should be(canonical.copy(container = canonical.container.map { ct =>
+            ct.copy(portMappings = ct.portMappings.map { pm =>
+              pm ++ Seq(extraPort)
+            })
+          }))
+        }
+      }
+      behave like normalizeMismatchedPortDefinitionsAndMappings("container-mode networking", _.legacyDockerApp, _.normalizedDockerApp, ContainerPortMapping())
+      behave like normalizeMismatchedPortDefinitionsAndMappings(
+        "bridge-mode networking",
+        f => f.legacyDockerApp.copy(ipAddress = None, container = f.legacyDockerApp.container.map { ct =>
+          ct.copy(docker = ct.docker.map { docker =>
+            docker.copy(network = Some(DockerNetwork.Bridge))
+          })
+        }),
+        _.normalizedDockerApp.copy(networks = Seq(Network(mode = NetworkMode.ContainerBridge))),
+        ContainerPortMapping(0, hostPort = Option(0))
+      )
+    }
+
     "migrate ipAddress discovery to container port mappings with a default network specified" when {
       val defaultNetworkName = Option("default-network0")
       implicit val appNormalizer = Normalization[App] { app =>
